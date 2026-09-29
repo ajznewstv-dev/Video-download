@@ -1,0 +1,6 @@
+{
+  "name": "TubeMate Downloader",
+  "description": "YouTube & online video downloader, browser, and media manager inspired by TubeMate",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
