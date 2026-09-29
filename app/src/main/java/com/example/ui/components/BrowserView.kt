@@ -649,60 +649,6 @@ fun ActivePlayableVideoHeader(
     video: PlayableVideoInfo,
     onClose: () -> Unit
 ) {
-    val context = LocalContext.current
-    var isPlaying by remember { mutableStateOf(true) }
-    var isReady by remember { mutableStateOf(false) }
-    var currentMs by remember { mutableIntStateOf(0) }
-    var durationMs by remember { mutableIntStateOf(315000) } // ~05:15
-
-    val videoViewRef = remember { mutableStateOf<VideoView?>(null) }
-    val audioPlayerRef = remember { mutableStateOf<MediaPlayer?>(null) }
-
-    // Start background audio player to guarantee sound even if container video sink has delay
-    DisposableEffect(video.id) {
-        val audioUrl = if (video.streamUrl.contains(".mp3")) {
-            video.streamUrl
-        } else {
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-        }
-        val mp = MediaPlayer().apply {
-            try {
-                setDataSource(context, Uri.parse(audioUrl))
-                setVolume(1.0f, 1.0f)
-                isLooping = true
-                setOnPreparedListener {
-                    start()
-                }
-                prepareAsync()
-            } catch (e: Exception) {
-                // ignore
-            }
-        }
-        audioPlayerRef.value = mp
-
-        onDispose {
-            try {
-                videoViewRef.value?.stopPlayback()
-                mp.stop()
-                mp.release()
-            } catch (e: Exception) {
-                // ignore
-            }
-        }
-    }
-
-    LaunchedEffect(isPlaying) {
-        while (isPlaying) {
-            delay(500)
-            videoViewRef.value?.let { vv ->
-                if (vv.isPlaying) {
-                    currentMs = vv.currentPosition
-                    durationMs = vv.duration.coerceAtLeast(1000)
-                }
-            }
-        }
-    }
-
     Card(
         shape = RoundedCornerShape(0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Black),
@@ -712,45 +658,56 @@ fun ActivePlayableVideoHeader(
             .testTag("active_video_player_card")
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Video Playback Area
+            // YouTube IFrame Player embedded in WebView
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(210.dp)
+                    .height(220.dp)
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
-                // Real Video View
                 AndroidView(
                     factory = { ctx ->
-                        VideoView(ctx).apply {
-                            setVideoURI(Uri.parse(video.streamUrl))
-                            setOnPreparedListener { mp ->
-                                isReady = true
-                                mp.isLooping = true
-                                mp.setVolume(1.0f, 1.0f)
-                                start()
-                                durationMs = duration.coerceAtLeast(1000)
+                        WebView(ctx).apply {
+                            settings.apply {
+                                javaScriptEnabled = true
+                                domStorageEnabled = true
+                                mediaPlaybackRequiresUserGesture = false
+                                loadWithOverviewMode = true
+                                useWideViewPort = true
                             }
-                            setOnCompletionListener {
-                                isPlaying = false
-                            }
-                            setOnErrorListener { _, _, _ ->
-                                isReady = true
-                                true
-                            }
-                            videoViewRef.value = this
+                            webChromeClient = WebChromeClient()
+                            webViewClient = WebViewClient()
+
+                            val videoId = if (video.videoUrl.contains("v=")) {
+                                video.videoUrl.substringAfter("v=").substringBefore("&")
+                            } else "7SLGxEDyqWo"
+
+                            val html = """
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                                    <style>
+                                        * { margin: 0; padding: 0; }
+                                        body, html { width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+                                        iframe { width: 100%; height: 100%; border: none; }
+                                    </style>
+                                </head>
+                                <body>
+                                    <iframe id="player"
+                                        src="https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&controls=1&enablejsapi=1&rel=0"
+                                        allow="autoplay; encrypted-media; picture-in-picture"
+                                        allowfullscreen>
+                                    </iframe>
+                                </body>
+                                </html>
+                            """.trimIndent()
+                            loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
                         }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
-
-                if (!isReady) {
-                    CircularProgressIndicator(
-                        color = TubeMateAccent,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
 
                 // Close Button Top-Right
                 IconButton(
@@ -767,89 +724,6 @@ fun ActivePlayableVideoHeader(
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
-                }
-
-                // Bottom Video Controls Bar
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = {
-                                val vv = videoViewRef.value ?: return@IconButton
-                                vv.seekTo((vv.currentPosition - 10000).coerceAtLeast(0))
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Replay10,
-                                contentDescription = "-10s",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                val vv = videoViewRef.value
-                                val ap = audioPlayerRef.value
-                                if (isPlaying) {
-                                    vv?.pause()
-                                    ap?.pause()
-                                    isPlaying = false
-                                } else {
-                                    vv?.start()
-                                    ap?.start()
-                                    isPlaying = true
-                                }
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = Color.White,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                val vv = videoViewRef.value ?: return@IconButton
-                                vv.seekTo((vv.currentPosition + 10000).coerceAtMost(vv.duration))
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Forward10,
-                                contentDescription = "+10s",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.VolumeUp,
-                            contentDescription = "Sound on",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Playing with sound",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
                 }
             }
 

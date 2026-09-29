@@ -93,8 +93,17 @@ fun MediaPlayerDialog(
         onDispose {
             try {
                 videoViewRef.value?.stopPlayback()
-                mediaPlayerRef.value?.stop()
-                mediaPlayerRef.value?.release()
+            } catch (e: Exception) {
+                // ignore
+            }
+            try {
+                mediaPlayerRef.value?.let { mp ->
+                    if (mp.isPlaying) {
+                        mp.stop()
+                    }
+                    mp.reset()
+                    mp.release()
+                }
             } catch (e: Exception) {
                 // ignore
             }
@@ -186,20 +195,35 @@ fun MediaPlayerDialog(
                         // Native Audio Player via MediaPlayer
                         DisposableEffect(playableUrl) {
                             val mp = MediaPlayer().apply {
-                                setDataSource(context, Uri.parse(playableUrl))
-                                setVolume(1.0f, 1.0f)
-                                setOnPreparedListener {
+                                try {
+                                    setDataSource(context, Uri.parse(playableUrl))
+                                    setVolume(1.0f, 1.0f)
+                                    setOnPreparedListener {
+                                        isVideoReady = true
+                                        start()
+                                        durationMs = duration
+                                        this@apply.isLooping = true
+                                    }
+                                    setOnErrorListener { _, _, _ ->
+                                        isVideoReady = true
+                                        true
+                                    }
+                                    prepareAsync()
+                                } catch (e: Exception) {
                                     isVideoReady = true
-                                    start()
-                                    durationMs = duration
-                                    this@apply.isLooping = true
                                 }
-                                prepareAsync()
                             }
                             mediaPlayerRef.value = mp
                             onDispose {
-                                mp.stop()
-                                mp.release()
+                                try {
+                                    if (mp.isPlaying) {
+                                        mp.stop()
+                                    }
+                                    mp.reset()
+                                    mp.release()
+                                } catch (e: Exception) {
+                                    // ignore
+                                }
                             }
                         }
 
