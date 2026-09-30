@@ -36,7 +36,8 @@ import com.example.ui.theme.TubeMateTeal
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenApkExport: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -101,6 +102,12 @@ fun SettingsScreen(
             item {
                 SettingsSectionHeader(title = "Information")
                 SettingsFolderItem(
+                    title = "📦 Download / Export App APK",
+                    subtitle = "Package: com.example • Version: 3.4.23 (23.4 MB)",
+                    onClick = onOpenApkExport
+                )
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                SettingsFolderItem(
                     title = "Check for updates",
                     subtitle = "3.4.23.1571"
                 )
@@ -130,11 +137,11 @@ fun SettingsSectionHeader(title: String) {
 }
 
 @Composable
-fun SettingsFolderItem(title: String, subtitle: String) {
+fun SettingsFolderItem(title: String, subtitle: String, onClick: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Edit folder */ }
+            .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Text(

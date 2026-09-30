@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.MainViewModel
+import com.example.ui.components.ApkExportDialog
 import com.example.ui.components.BrowserView
 import com.example.ui.components.FormatSelectionDialog
 import com.example.ui.components.LeftDrawerContent
@@ -105,10 +106,12 @@ fun TubeMateApp(viewModel: MainViewModel) {
     val activePlayerMedia by viewModel.activePlayerMedia.collectAsStateWithLifecycle()
     val isSearchVisible by viewModel.isSearchVisible.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    var showApkExportDialog by remember { mutableStateOf(false) }
 
     // Handle Android system back button cleanly
     BackHandler(
-        enabled = activePlayerMedia != null ||
+        enabled = showApkExportDialog ||
+                activePlayerMedia != null ||
                 showFormatDialog ||
                 isParsing ||
                 currentlyPlayingVideo != null ||
@@ -118,6 +121,7 @@ fun TubeMateApp(viewModel: MainViewModel) {
                 canGoBack
     ) {
         when {
+            showApkExportDialog -> showApkExportDialog = false
             activePlayerMedia != null -> viewModel.closePlayer()
             showFormatDialog -> viewModel.closeFormatDialog()
             isParsing -> viewModel.cancelParsing()
@@ -130,7 +134,13 @@ fun TubeMateApp(viewModel: MainViewModel) {
     }
 
     if (isSettingsOpen) {
-        SettingsScreen(onBack = { viewModel.closeSettings() })
+        SettingsScreen(
+            onBack = { viewModel.closeSettings() },
+            onOpenApkExport = { showApkExportDialog = true }
+        )
+        if (showApkExportDialog) {
+            ApkExportDialog(onDismiss = { showApkExportDialog = false })
+        }
         return
     }
 
@@ -150,7 +160,8 @@ fun TubeMateApp(viewModel: MainViewModel) {
                     onToggleBlockAutoplay = { viewModel.toggleBlockAutoplay() },
                     onClearCache = {
                         Toast.makeText(context, "Local cache cleared", Toast.LENGTH_SHORT).show()
-                    }
+                    },
+                    onOpenApkExport = { showApkExportDialog = true }
                 )
             },
             bottomBar = {
@@ -262,7 +273,8 @@ fun TubeMateApp(viewModel: MainViewModel) {
                 onDeleteDownload = { viewModel.deleteDownload(it) },
                 onPlayMedia = { viewModel.playMedia(it) },
                 onPauseAll = { viewModel.pauseAll() },
-                onResumeAll = { viewModel.resumeAll() }
+                onResumeAll = { viewModel.resumeAll() },
+                onOpenApkExport = { showApkExportDialog = true }
             )
         }
 
@@ -308,6 +320,11 @@ fun TubeMateApp(viewModel: MainViewModel) {
                 media = media,
                 onClose = { viewModel.closePlayer() }
             )
+        }
+
+        // In-App APK Export & Download Dialog
+        if (showApkExportDialog) {
+            ApkExportDialog(onDismiss = { showApkExportDialog = false })
         }
     }
 }

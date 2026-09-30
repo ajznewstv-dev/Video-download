@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Movie
@@ -29,6 +30,8 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
@@ -80,7 +83,8 @@ fun RightDrawerContent(
     onDeleteDownload: (String) -> Unit,
     onPlayMedia: (DownloadEntity) -> Unit,
     onPauseAll: () -> Unit,
-    onResumeAll: () -> Unit
+    onResumeAll: () -> Unit,
+    onOpenApkExport: () -> Unit = {}
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
 
@@ -246,7 +250,8 @@ fun RightDrawerContent(
                         onPause = onPauseDownload,
                         onResume = onResumeDownload,
                         onDelete = onDeleteDownload,
-                        onPlay = onPlayMedia
+                        onPlay = onPlayMedia,
+                        onOpenApkExport = onOpenApkExport
                     )
                     1 -> PlaylistTab()
                     2 -> VideosListTab(
@@ -278,7 +283,7 @@ fun RightDrawerContent(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search downloads",
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
     }
@@ -295,32 +300,98 @@ fun DownloadsListTab(
     onPause: (String) -> Unit,
     onResume: (String, Long) -> Unit,
     onDelete: (String) -> Unit,
-    onPlay: (DownloadEntity) -> Unit
+    onPlay: (DownloadEntity) -> Unit,
+    onOpenApkExport: () -> Unit = {}
 ) {
-    if (downloads.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("No downloads yet", color = Color.Gray, fontSize = 14.sp)
-        }
-        return
-    }
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .testTag("downloads_manager_list")
     ) {
-        items(downloads, key = { it.id }) { item ->
-            DownloadItemRow(
-                item = item,
-                onPause = { onPause(item.id) },
-                onResume = { onResume(item.id, item.totalBytes) },
-                onDelete = { onDelete(item.id) },
-                onPlay = { onPlay(item) }
-            )
+        // Prominent APK Card at the top
+        item {
+            Card(
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .clickable { onOpenApkExport() }
+                    .testTag("tubemate_apk_card")
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF2E7D32)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Android,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "TubeMate APK (v3.4.23)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF1B5E20)
+                        )
+                        Text(
+                            text = "Package: com.example • 23.4 MB",
+                            fontSize = 11.sp,
+                            color = Color(0xFF388E3C)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF2E7D32))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "GET APK",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
             HorizontalDivider(color = Color(0xFFEEEEEE))
+        }
+
+        if (downloads.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No other active downloads", color = Color.Gray, fontSize = 14.sp)
+                }
+            }
+        } else {
+            items(downloads, key = { it.id }) { item ->
+                DownloadItemRow(
+                    item = item,
+                    onPause = { onPause(item.id) },
+                    onResume = { onResume(item.id, item.totalBytes) },
+                    onDelete = { onDelete(item.id) },
+                    onPlay = { onPlay(item) }
+                )
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+            }
         }
     }
 }

@@ -61,6 +61,7 @@ fun TubeMateTopBar(
     isBlockAutoplay: Boolean,
     onToggleBlockAutoplay: () -> Unit,
     onClearCache: () -> Unit,
+    onOpenApkExport: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -250,6 +251,18 @@ fun TubeMateTopBar(
                         onClick = {
                             showMenu = false
                             onOpenSettings()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("📦 Get App APK", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TubeMateAccent)
+                            }
+                        },
+                        onClick = {
+                            showMenu = false
+                            onOpenApkExport()
                         }
                     )
 
